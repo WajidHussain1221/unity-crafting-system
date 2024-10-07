@@ -1,6 +1,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Unity.VisualScripting;
 using UnityEditor.PackageManager.Requests;
@@ -10,12 +11,28 @@ using UnityEngine;
 /// </summary>
 public class CraftingSystem : MonoBehaviour
 {   
+    #region  SINGLETON 
+    private static CraftingSystem  instance ;
+
+    // Lazy instantiate 
+    public static CraftingSystem Instance  {
+        get 
+            { 
+                if(instance == null){
+                    instance =  new ();
+                    return instance ; 
+                }
+                else{
+                return  instance ; }; 
+            }   
+        set {instance =  value ;} } 
+
+    #endregion
 
     #region  Debugging 
     public Item[]  items ; 
 
     [ContextMenu("Test Add to Queue")]
-
     public void AddToQueue(){
 
         foreach (Item  item  in items){
@@ -38,19 +55,14 @@ public class CraftingSystem : MonoBehaviour
         - Refund items if queue is cancelled [ Done ]
     */  
 
-    private readonly Queue<ICraftable>  craftQueue =  new() ;
+    public event Action<List<ICraftable>> OnQueueUpdated  ;
+
+    private readonly Queue<ICraftable>  craftQueue  ;
     public ICraftable currentCraftable  ; 
    
 
     [SerializeField , Range ( 0 , 20)]  private int queueQoutta ; 
  
-    public  ICraftable  CraftTaskTarget {  get { return  currentCraftable ; }      private  set {
-        value = currentCraftable ; 
-    } }    
-
-    void Start(){
-
-    }
     void Update(){
         if(Input.GetKeyDown(KeyCode.C) ){
             if (!threadRunning)
@@ -90,29 +102,25 @@ public class CraftingSystem : MonoBehaviour
  
     #endregion
     # region Queue Management       
-
-    
-  
     public void AddToQueue (ICraftable  craftable){
+        ItemEntry[]  neededItems  =  craftable.NeededItems.ToArray() ;
+        HashSet<int> resourceFootPrint = new();
 
+        bool readyToBeQueued;
+        foreach (ItemEntry item in neededItems)
+        {
 
-        // Get a list of needed items
-        ItemEntry[]  neededItems  =  craftable.NeededItems.ToArray() ; 
-
-        bool  readyToBeQueued =  false ; 
-        HashSet<int> resourceFootPrint  = new(); 
-        foreach( ItemEntry item  in neededItems){
-
-            ItemEntry itemEntry =  Inventory.Instance.GetItemEntry(item) ;
-            if(itemEntry !=  null  &&   itemEntry.Count <= item.Count ){
-                readyToBeQueued =  false ;
-                Debug.Log($"Insufficent {itemEntry.Item.name} to craft {(craftable  as Item).name } \n  {itemEntry.Count} / {item.Count}") ;
-                resourceFootPrint.Add(0) ;
+            ItemEntry itemEntry = Inventory.Instance.GetItemEntry(item);
+            if (itemEntry != null && itemEntry.Count <= item.Count)
+            {
+                readyToBeQueued = false;
+                Debug.Log($"Insufficent {itemEntry.Item.name} to craft {(craftable as Item).name} \n  {itemEntry.Count} / {item.Count}");
+                resourceFootPrint.Add(0);
             }
-            else if (itemEntry ==  null) {Debug.Log(item.Item.name + " not found in inventory"); }
-            else  resourceFootPrint.Add(1) ; 
+            else if (itemEntry == null) { Debug.Log(item.Item.name + " not found in inventory"); }
+            else resourceFootPrint.Add(1);
 
-        }   
+        }
         readyToBeQueued =  resourceFootPrint.Count == 1 &&  resourceFootPrint.Contains(1) ;
         if(craftQueue.Count  < queueQoutta   && readyToBeQueued ) {
             Debug.Log( "Reserving resources for "+ (craftable as Item ).name);
@@ -127,17 +135,18 @@ public class CraftingSystem : MonoBehaviour
  
             craftQueue.Enqueue(craftable) ;
         }
+        OnQueueUpdated.Invoke(craftQueue.ToList()) ; 
 
-    }
-
-    void Craft(){
-        ItemReservationMap.Instance.PurgeAll();
-        TickCore(craftQueue);
-    
     }
     void CancelQueue(){
         ItemReservationMap.Instance.RefundAll();
+        OnQueueUpdated.Invoke(craftQueue.ToList()) ; 
         craftQueue.Clear() ;
+    }
+    void Craft(){
+        ItemReservationMap.Instance.PurgeAll();
+        OnQueueUpdated.Invoke(craftQueue.ToList()) ; 
+        TickCore(craftQueue);
     }
 
     #endregion
@@ -197,6 +206,7 @@ public class CraftingSystem : MonoBehaviour
             }
         }
     }   
+
 
 }
 
