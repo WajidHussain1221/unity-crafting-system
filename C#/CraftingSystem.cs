@@ -15,18 +15,15 @@ public class CraftingSystem : MonoBehaviour
     private static CraftingSystem  instance ;
 
     // Lazy instantiate 
-    public static CraftingSystem Instance  {
-        get 
-            { 
-                if(instance == null){
-                    instance =  new ();
-                    return instance ; 
-                }
-                else{
-                return  instance ; }; 
-            }   
-        set {instance =  value ;} } 
-
+    public static CraftingSystem Instance ; 
+    
+    void Awake()
+    {
+            Instance  =  this ;  
+            if(Instance != this) {
+                Destroy(gameObject) ; 
+            }
+    }
     #endregion
 
     #region  Debugging 

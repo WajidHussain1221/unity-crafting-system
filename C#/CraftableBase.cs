@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "Equipment")]
+[CreateAssetMenu(menuName = "Core/Inventory/Craftable Item" , fileName = "New Craftable Item")]
 public class CraftableBase : Item , ICraftable
 {
-    // To-Do  implement base
+    // To-Do  implement base    
 
     [Header("Crafting")]
     [SerializeField] private float craftTime  = 3.4f;
